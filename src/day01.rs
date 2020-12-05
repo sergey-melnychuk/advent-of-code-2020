@@ -7,13 +7,7 @@ pub fn input() -> Vec<i64> {
 }
 
 /// Find pair of numbers from input slice that add up to provided sum value.
-pub fn find2(input: &[i64], sum: i64) -> Option<(i64, i64)> {
-    let sorted = {
-        let mut copy = input.to_vec();
-        copy.sort();
-        copy
-    };
-
+pub fn find2(sorted: &[i64], sum: i64) -> Option<(i64, i64)> {
     let mut lo: usize = 0;
     let mut hi: usize = sorted.len() - 1;
     loop {
@@ -56,13 +50,12 @@ fn find3(input: &[i64], sum: i64) -> Option<(i64, i64, i64)> {
     None
 }
 
+/// Return new Vector with element at given index missing (excluded)
 fn exclude<T: Clone + 'static>(slice: &[T], index: usize) -> Vec<T> {
-    let before = &slice[..index];
-    let after = &slice[(index + 1)..];
-    let mut result = Vec::with_capacity(slice.len() - 1);
-    result.extend_from_slice(before);
-    result.extend_from_slice(after);
-    result
+    slice.iter().enumerate()
+        .filter(|(i, _)| *i != index)
+        .map(|(_, e)| e.clone())
+        .collect()
 }
 
 fn solve3(input: &Vec<i64>) -> i64 {
@@ -71,7 +64,11 @@ fn solve3(input: &Vec<i64>) -> i64 {
 }
 
 pub fn main() {
-    let input = input();
+    let input = {
+        let mut xs = input();
+        xs.sort();
+        xs
+    };
 
     let answer = solve2(&input);
     println!("{}", answer);
