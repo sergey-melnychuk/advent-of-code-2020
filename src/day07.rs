@@ -15,7 +15,7 @@ fn input(lines: &Vec<String>) -> HashMap<Color, Capacity> {
 }
 
 fn parse(line: &str) -> (Color, Capacity) {
-    fn parse_cap(remaining: &str) -> Record {
+    fn parse_capacity_record(remaining: &str) -> Record {
         let words: Vec<&str> = remaining.split(" ").collect();
         let count: usize = words[0].parse().unwrap();
         let color = words[1].to_string() + " " + words[2];
@@ -31,11 +31,11 @@ fn parse(line: &str) -> (Color, Capacity) {
     } else {
         if remaining.contains(",") {
             let capacity: Vec<Record> = remaining.split(", ")
-                .map(|sub_line| parse_cap(sub_line))
+                .map(|sub_line| parse_capacity_record(sub_line))
                 .collect();
             (color, capacity)
         } else {
-            (color, vec![parse_cap(remaining)])
+            (color, vec![parse_capacity_record(remaining)])
         }
     }
 }
@@ -75,10 +75,13 @@ fn bfs(reverse_index: &HashMap<Color, Vec<Color>>, color: &str) -> usize {
     seen.len()
 }
 
-fn dfs(index: &HashMap<Color, Capacity>, color: &str) -> usize {
+// `init` defines if enclosing (wrapper) bag is included in total count:
+// top-level bag is not included (0), but all others are included (1).
+fn dfs(index: &HashMap<Color, Capacity>, color: &str, init: usize) -> usize {
+    assert!(init == 0 || init == 1);
     let capacity = index.get(color).unwrap();
-    capacity.iter().fold(1, |acc, (n, color)| {
-        acc + n * dfs(index, color)
+    capacity.iter().fold(init, |acc, (n, color)| {
+        acc + n * dfs(index, color, 1)
     })
 }
 
@@ -89,7 +92,7 @@ pub fn main() {
     let count = bfs(&reverse, "shiny gold");
     println!("{}", count);
 
-    let count = dfs(&index, "shiny gold") - 1; // do not count the 'shiny gold' wrapper
+    let count = dfs(&index, "shiny gold", 0);
     println!("{}", count);
 }
 
@@ -166,7 +169,7 @@ mod tests {
         let strings: Vec<String> = lines.into_iter().map(|s| s.to_string()).collect();
         let index = input(&strings);
 
-        let count = dfs(&index, "shiny gold");
-        assert_eq!(count - 1, 126);
+        let count = dfs(&index, "shiny gold", 0);
+        assert_eq!(count, 126);
     }
 }
