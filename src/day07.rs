@@ -102,7 +102,11 @@ mod tests {
 
     #[test]
     fn test_parse_full() {
-        let line = "faded yellow bags contain 4 mirrored fuchsia bags, 4 dotted indigo bags, 3 faded orange bags, 5 plaid crimson bags.";
+        let line = "faded yellow bags contain \
+            4 mirrored fuchsia bags, \
+            4 dotted indigo bags, \
+            3 faded orange bags, \
+            5 plaid crimson bags.";
         let (color, capacity) = parse(line);
 
         assert_eq!(color, "faded yellow");
