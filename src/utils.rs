@@ -7,6 +7,7 @@ pub fn lines() -> Vec<String> {
         .collect()
 }
 
+#[allow(dead_code)]
 pub fn primes(mut x: u64) -> Vec<u64> {
     let mut result = Vec::new();
     while x > 1 {
