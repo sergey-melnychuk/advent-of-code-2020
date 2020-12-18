@@ -24,6 +24,24 @@ pub fn primes(mut x: u64) -> Vec<u64> {
     result
 }
 
+#[allow(dead_code)]
+fn head<T>(vec: Vec<T>) -> (T, Vec<T>) {
+    let mut it = vec.into_iter();
+    let a = it.next().unwrap();
+    let rem = it.collect();
+    (a, rem)
+}
+
+#[allow(dead_code)]
+fn take2<T>(vec: Vec<T>) -> ((T, T), Vec<T>) {
+    let mut it = vec.into_iter();
+    let a = it.next().unwrap();
+    let b = it.next().unwrap();
+    let rem = it.collect();
+    ((a, b), rem)
+}
+
+
 #[cfg(test)]
 mod tests {
     use super::*;

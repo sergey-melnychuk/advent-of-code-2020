@@ -81,6 +81,6 @@ mod tests {
     #[test]
     fn test_answers() {
         assert_eq!(play(&[20,9,11,0,1,2],       2020),  1111);
-        assert_eq!(play(&[20,9,11,0,1,2], 30_000_000), 48568);
+        //assert_eq!(play(&[20,9,11,0,1,2], 30_000_000), 48568); // ~1min in release, but too slow in debug
     }
 }
