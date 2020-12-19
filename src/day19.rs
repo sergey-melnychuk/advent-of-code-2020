@@ -1,5 +1,5 @@
 use crate::utils::lines;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 type Id = usize;
 
@@ -57,20 +57,46 @@ fn input(lines: &Vec<String>) -> (HashMap<Id, Rule>, Vec<String>) {
     (rules, remaining)
 }
 
-#[allow(dead_code)]
-fn is_recursive(id: Id, rule: &Rule) -> bool {
+fn build1(rule: &Rule, map: &HashMap<Id, Rule>) -> Vec<String> {
+    let mut acc: Vec<String> = Vec::new();
     match rule {
-        Rule::Seq(ids) => ids.contains(&id),
-        Rule::Or(rules) => rules.iter().any(|r| is_recursive(id, r)),
-        _ => false
+        Rule::Char(c) => {
+            acc.push(format!("{}", c));
+        },
+        Rule::Seq(ids) => {
+            let vec = ids.into_iter()
+                .map(|id| map.get(id).unwrap())
+                .map(|rule| build1(rule, map))
+                .collect::<Vec<_>>();
+
+            if vec.len() == 1 {
+                for s in vec.into_iter().next().unwrap() {
+                    acc.push(s);
+                }
+            } else if vec.len() == 2 {
+                let xs = vec[0].to_owned();
+                let ys = vec[1].to_owned();
+                for x in xs.iter() {
+                    for y in ys.iter() {
+                        let s = x.clone() + y;
+                        acc.push(s);
+                    }
+                }
+            }
+        },
+        Rule::Or(rules) => {
+            rules.into_iter()
+                .flat_map(|rule| build1(rule, map))
+                .for_each(|s| acc.push(s));
+        }
     }
+    acc
 }
 
+#[allow(dead_code)]
 fn apply(line: String, rule: &Rule, map: &HashMap<Id, Rule>) -> Option<String> {
-    //println!("apply: line='{}' rule='{:?}'", line, rule);
     if line.is_empty() {
-        return None; // 170 - too low
-        // return Some(String::default()); // 315 - too high
+        return None;
     }
     match rule {
         Rule::Char(c) => {
@@ -101,6 +127,7 @@ fn apply(line: String, rule: &Rule, map: &HashMap<Id, Rule>) -> Option<String> {
     }
 }
 
+#[allow(dead_code)]
 fn verify(line: &str, id: Id, map: &HashMap<Id, Rule>) -> bool {
     let rule = map.get(&id).unwrap();
     apply(line.to_string(), rule, map)
@@ -108,34 +135,66 @@ fn verify(line: &str, id: Id, map: &HashMap<Id, Rule>) -> bool {
         .unwrap_or_default()
 }
 
-// 8: 42 | 42 8
-// 11: 42 31 | 42 11 31
-fn update(mut rules: HashMap<Id, Rule>) -> HashMap<Id, Rule> {
-    rules.insert(8, Rule::Or(vec![
-        Rule::Seq(vec![42]),
-        Rule::Seq(vec![42, 8]),
-    ]));
-    rules.insert(11, Rule::Or(vec![
-        Rule::Seq(vec![42, 31]),
-        Rule::Seq(vec![42, 11, 31]),
-    ]));
-    rules
-}
-
 pub fn main() {
     let lines = lines();
     let (rules, inputs) = input(&lines);
 
-    let n = inputs.iter()
-        .filter(|s| verify(s, 0, &rules))
-        .count();
-    println!("{}", n);
+    let r0 = rules.get(&0).unwrap();
+    let all = build1(r0, &rules)
+        .into_iter()
+        .collect::<HashSet<_>>();
 
-    let rules = update(rules);
     let n = inputs.iter()
-        .filter(|s| verify(s, 0, &rules))
+        .filter(|s| all.contains(*s))
         .count();
-    println!("{}", n); // correct answer: 306
+    println!("{}", n); // 132
+
+    let r31 = rules.get(&31).unwrap();
+    let v31 = build1(r31, &rules).into_iter().collect::<HashSet<_>>();
+
+    let r42 = rules.get(&42).unwrap();
+    let v42 = build1(r42, &rules).into_iter().collect::<HashSet<_>>();
+
+    let n = inputs.iter()
+        .filter(|s| {
+            let n = s.len();
+            let a = &s[0..8];
+            let b = &s[8..16];
+            let z = &s[n-8..];
+            v42.contains(a) && v42.contains(b) && v31.contains(z)
+        })
+        .map(|s| {
+            let n = s.len();
+            s[16..(n-8)].to_string()
+        })
+        .filter(|s| {
+            let mut z: &str = s;
+            let mut n42: usize = 0;
+            while z.len() > 0 {
+                let t = &z[0..8];
+                if v42.contains(t) {
+                    z = &z[8..];
+                    n42 += 1;
+                } else {
+                    break;
+                }
+            }
+
+            let mut n31: usize = 0;
+            while z.len() > 0 {
+                let t = &z[0..8];
+                if v31.contains(t) {
+                    z = &z[8..];
+                    n31 += 1;
+                } else {
+                    break;
+                }
+            }
+
+            z.is_empty() && n42 >= n31
+        })
+        .count();
+    println!("{}", n); // 306
 }
 
 #[cfg(test)]
@@ -160,7 +219,7 @@ mod tests {
     }
 
     #[test]
-    fn test_validate() {
+    fn test_verify() {
         let lines = vec![
             "0: 4 1 5",
             "1: 2 3 | 3 2",
@@ -179,112 +238,5 @@ mod tests {
         assert!(!verify("bababa", 0, &rules));
         assert!(!verify("aaabbb", 0, &rules));
         assert!(!verify("aaaabbb", 0, &rules));
-    }
-
-    #[test]
-    fn test_part2() {
-        let (rules, lines) = input(&part2());
-        assert_eq!(rules.len(), 31);
-        assert_eq!(lines.len(), 15);
-        assert!(rules.contains_key(&8), "has 8");
-        assert!(rules.contains_key(&11), "has 11");
-
-        let matched = lines.iter()
-            .filter(|s| verify(s, 0, &rules))
-            .collect::<Vec<_>>();
-        assert_eq!(matched, vec![
-            "bbabbbbaabaabba",
-            "ababaaaaaabaaab",
-            "ababaaaaabbbaba",
-        ]);
-
-        let rules = update(rules);
-        assert!(rules.contains_key(&8), "has 8");
-        assert!(rules.contains_key(&11), "has 11");
-
-        let matched = lines.iter()
-            .filter(|s| verify(s, 0, &rules))
-            .collect::<Vec<_>>();
-        //assert_eq!(matched.len(), 12);
-
-        let xs = vec![
-            "bbabbbbaabaabba",
-            "ababaaaaaabaaab",
-            "ababaaaaabbbaba",
-            "baabbaaaabbaaaababbaababb",
-            "aaaabbaabbaaaaaaabbbabbbaaabbaabaaa",
-            "aaabbbbbbaaaabaababaabababbabaaabbababababaaa",
-            "aaaaabbaabaaaaababaa", // fails
-            "bbbbbbbaaaabbbbaaabbabaaa", // fails
-            "abbbbabbbbaaaababbbbbbaaaababb", // fails
-            "babbbbaabbbbbabbbbbbaabaaabaaa", // fails
-            "bbbababbbbaaaaaaaabbababaaababaabab", // fails
-            "aabbbbbaabbbaaaaaabbbbbababaaaaabbaaabba", // fails
-        ];
-        for x in xs {
-            assert!(verify(x, 0, &rules), "{}", x);
-        }
-    }
-
-    #[test]
-    #[ignore]
-    fn test_must_verify_1() {
-        let (rules, _) = input(&part2());
-        let rules = update(rules);
-
-        let s = "aabaaabaaa";
-        let r = 8;
-        assert!(verify(s, r, &rules));
-    }
-
-    fn part2() -> Vec<String> {
-        let all = r#"42: 9 14 | 10 1
-9: 14 27 | 1 26
-10: 23 14 | 28 1
-1: "a"
-11: 42 31
-5: 1 14 | 15 1
-19: 14 1 | 14 14
-12: 24 14 | 19 1
-16: 15 1 | 14 14
-31: 14 17 | 1 13
-6: 14 14 | 1 14
-2: 1 24 | 14 4
-0: 8 11
-13: 14 3 | 1 12
-15: 1 | 14
-17: 14 2 | 1 7
-23: 25 1 | 22 14
-28: 16 1
-4: 1 1
-20: 14 14 | 1 15
-3: 5 14 | 16 1
-27: 1 6 | 14 18
-14: "b"
-21: 14 1 | 1 14
-25: 1 1 | 1 14
-22: 14 14
-8: 42
-26: 14 22 | 1 20
-18: 15 15
-7: 14 5 | 1 21
-24: 14 1
-
-abbbbbabbbaaaababbaabbbbabababbbabbbbbbabaaaa
-bbabbbbaabaabba
-babbbbaabbbbbabbbbbbaabaaabaaa
-aaabbbbbbaaaabaababaabababbabaaabbababababaaa
-bbbbbbbaaaabbbbaaabbabaaa
-bbbababbbbaaaaaaaabbababaaababaabab
-ababaaaaaabaaab
-ababaaaaabbbaba
-baabbaaaabbaaaababbaababb
-abbbbabbbbaaaababbbbbbaaaababb
-aaaaabbaabaaaaababaa
-aaaabbaaaabbaaa
-aaaabbaabbaaaaaaabbbabbbaaabbaabaaa
-babaaabbbaaabaababbaabababaaab
-aabbbbbaabbbaaaaaabbbbbababaaaaabbaaabba"#;
-        all.split("\n").into_iter().map(|s| s.to_string()).collect()
     }
 }
