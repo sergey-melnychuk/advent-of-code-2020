@@ -95,14 +95,8 @@ fn apply(line: String, rule: &Rule, map: &HashMap<Id, Rule>) -> Option<String> {
             let mut it = rules.into_iter();
             let one = it.next().unwrap();
             let two = it.next().unwrap();
-            match (
-                apply(line.clone(), one, map),
-                apply(line.clone(), two, map)
-            ) {
-                (_, a) if a.is_some() => a,
-                (a, _) if a.is_some() => a,
-                (_, b) => b
-            }
+            apply(line.clone(), one, map)
+                .or_else(|| apply(line, two, map))
         }
     }
 }
@@ -141,10 +135,7 @@ pub fn main() {
     let n = inputs.iter()
         .filter(|s| verify(s, 0, &rules))
         .count();
-    println!("{}", n);
-
-    // 170: too low
-    // 315: too high
+    println!("{}", n); // correct answer: 306
 }
 
 #[cfg(test)]
@@ -198,42 +189,52 @@ mod tests {
         assert!(rules.contains_key(&8), "has 8");
         assert!(rules.contains_key(&11), "has 11");
 
-        // let matched = lines.iter()
-        //     .filter(|s| verify(s, 0, &rules))
-        //     .collect::<Vec<_>>();
-        // assert_eq!(matched, vec![
-        //     "bbabbbbaabaabba",
-        //     "ababaaaaaabaaab",
-        //     "ababaaaaabbbaba",
-        // ]);
+        let matched = lines.iter()
+            .filter(|s| verify(s, 0, &rules))
+            .collect::<Vec<_>>();
+        assert_eq!(matched, vec![
+            "bbabbbbaabaabba",
+            "ababaaaaaabaaab",
+            "ababaaaaabbbaba",
+        ]);
 
         let rules = update(rules);
         assert!(rules.contains_key(&8), "has 8");
         assert!(rules.contains_key(&11), "has 11");
 
-        // let matched = lines.iter()
-        //     .filter(|s| verify(s, 0, &rules))
-        //     .collect::<Vec<_>>();
+        let matched = lines.iter()
+            .filter(|s| verify(s, 0, &rules))
+            .collect::<Vec<_>>();
         //assert_eq!(matched.len(), 12);
 
         let xs = vec![
-            // "bbabbbbaabaabba",
+            "bbabbbbaabaabba",
+            "ababaaaaaabaaab",
+            "ababaaaaabbbaba",
+            "baabbaaaabbaaaababbaababb",
+            "aaaabbaabbaaaaaaabbbabbbaaabbaabaaa",
+            "aaabbbbbbaaaabaababaabababbabaaabbababababaaa",
+            "aaaaabbaabaaaaababaa", // fails
+            "bbbbbbbaaaabbbbaaabbabaaa", // fails
+            "abbbbabbbbaaaababbbbbbaaaababb", // fails
             "babbbbaabbbbbabbbbbbaabaaabaaa", // fails
-            // "aaabbbbbbaaaabaababaabababbabaaabbababababaaa",
-            //"bbbbbbbaaaabbbbaaabbabaaa", // fails
-            //"bbbababbbbaaaaaaaabbababaaababaabab", // fails
-            // "ababaaaaaabaaab",
-            // "ababaaaaabbbaba",
-            // "baabbaaaabbaaaababbaababb",
-            //"abbbbabbbbaaaababbbbbbaaaababb", // fails
-            //"aaaaabbaabaaaaababaa", // fails
-            // "aaaabbaabbaaaaaaabbbabbbaaabbaabaaa",
-            //"aabbbbbaabbbaaaaaabbbbbababaaaaabbaaabba", // fails
+            "bbbababbbbaaaaaaaabbababaaababaabab", // fails
+            "aabbbbbaabbbaaaaaabbbbbababaaaaabbaaabba", // fails
         ];
         for x in xs {
-            println!("\nverify: {}", x);
             assert!(verify(x, 0, &rules), "{}", x);
         }
+    }
+
+    #[test]
+    #[ignore]
+    fn test_must_verify_1() {
+        let (rules, _) = input(&part2());
+        let rules = update(rules);
+
+        let s = "aabaaabaaa";
+        let r = 8;
+        assert!(verify(s, r, &rules));
     }
 
     fn part2() -> Vec<String> {
