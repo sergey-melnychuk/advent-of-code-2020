@@ -21,6 +21,7 @@ impl Tile {
         }
     }
 
+    #[allow(dead_code)]
     fn hflip(&self) -> Tile {
         let tile = self.tile
             .iter()
@@ -52,6 +53,7 @@ impl Tile {
         }
     }
 
+    #[allow(dead_code)]
     fn ccw(&self) -> Tile {
         let n = self.tile.len();
 
@@ -193,72 +195,6 @@ fn corners(index: &HashMap<u64, Vec<u32>>, count: &HashMap<u32, u32>) -> Vec<u64
         .collect()
 }
 
-fn adj(size: usize, grid: &Vec<Tile>, idx: usize, index: &HashMap<u64, Vec<u32>>) -> Vec<Vec<u32>> {
-    let (row, col) = (idx / size, idx % size);
-
-    let mut result = Vec::with_capacity(2);
-    if col > 0 {
-        let id = grid.get(idx - 1).unwrap().id;
-        let edges = index.get(&id).unwrap();
-        result.push(edges.clone());
-    }
-    if row > 0 {
-        let id = grid.get(idx - size).unwrap().id;
-        let edges = index.get(&id).unwrap();
-        result.push(edges.clone());
-    }
-    result
-}
-
-fn align(size: usize, grid: Vec<Tile>, queue: Vec<Tile>, idx: usize, index: &HashMap<u64, Vec<u32>>, count: &HashMap<u32, u32>) -> Vec<Tile> {
-    if grid.len() == size * size {
-        return grid;
-    }
-    if queue.is_empty() {
-        return vec![];
-    }
-    let (row, col) = (idx / size, idx % size);
-    let is_edge = col == 0 || col == size-1 || row == 0 || row == size-1;
-    //println!("align: idx={} is_edge={}, prev={}", idx, is_edge, grid[idx-1]);
-
-    let adj = adj(size, &grid, idx, index);
-    //println!("\tadj={:?}", adj);
-
-    let next = queue.iter()
-        .filter(|tile| {
-            let edges = index.get(&tile.id).unwrap();
-            adj.iter()
-                .all(|es| es.iter().any(|e| edges.contains(e)))
-        })
-        .cloned()
-        .collect::<Vec<_>>();
-    let next = if !is_edge {
-        next
-    } else {
-        next.into_iter()
-            .filter(|tile| {
-                let edges = index.get(&tile.id).unwrap();
-                edges.iter()
-                    .any(|e| *count.get(e).unwrap() == 1)
-            })
-            .collect()
-    };
-    //println!("\tnext={:?}", next);
-
-    next.into_iter()
-        .map(|tile| {
-            let rest = queue.iter()
-                .filter(|t| t.id != tile.id)
-                .cloned()
-                .collect::<Vec<_>>();
-
-            let mut g = grid.clone();
-            g.push(tile);
-            align(size, g, rest, idx + 1, index, count)
-        })
-        .find(|vec| !vec.is_empty())
-        .unwrap_or_default()
-}
 
 fn crop(tile: Tile) -> Tile {
     let n = tile.tile.len();
@@ -267,7 +203,7 @@ fn crop(tile: Tile) -> Tile {
         .into_iter()
         .skip(1)
         .take(n - 2)
-        .map(|row| row.into_iter().skip(1).take(n-2).collect())
+        .map(|row| row.into_iter().skip(1).take(n - 2).collect())
         .collect();
 
     Tile {
@@ -277,52 +213,16 @@ fn crop(tile: Tile) -> Tile {
 }
 
 fn iterate(tile: &Tile) -> Vec<Tile> {
-    // TODO FIXME: make all meaningful combinations
-
     vec![
         tile.clone(),
-
-        tile.cw(),
-        tile.ccw(),
         tile.vflip(),
-        tile.hflip(),
-
-        tile.cw().cw(),
-        tile.vflip().cw(),
-        tile.hflip().cw(),
-
-        tile.ccw().ccw(),
-        tile.vflip().ccw(),
-        tile.hflip().ccw(),
-
+        tile.cw(),
         tile.cw().vflip(),
-        tile.ccw().vflip(),
-        tile.hflip().vflip(),
-
-        tile.cw().hflip(),
-        tile.ccw().hflip(),
-        tile.vflip().hflip(),
+        tile.cw().cw(),
+        tile.cw().cw().vflip(),
+        tile.cw().cw().cw(),
+        tile.cw().cw().cw().vflip(),
     ]
-}
-
-fn pair<F>(a: &Tile, b: &Tile, f: F) -> (Tile, Tile)
-    where
-        F: Fn(&Tile, &Tile) -> bool
-{
-    let pairs: Vec<(Tile, Tile)> = iterate(a)
-        .iter()
-        .flat_map(|x| {
-            iterate(b)
-                .iter()
-                .map(|y| (x.clone(), y.clone()))
-                .collect::<Vec<_>>()
-        })
-        .collect();
-
-    pairs.into_iter()
-        .filter(|(x, y)| f(x, y))
-        .next()
-        .unwrap()
 }
 
 fn align2(size: usize, grid: Vec<Tile>, queue: Vec<Tile>, idx: usize) -> Vec<Tile> {
@@ -343,8 +243,7 @@ fn align2(size: usize, grid: Vec<Tile>, queue: Vec<Tile>, idx: usize) -> Vec<Til
         })
         .filter(|tile| col == 0 || {
             let lft = grid.get(idx - 1).unwrap();
-            lft.hfit(tile) // fast but wrong! TODO FIXME
-            // tile.hfit(lft)
+            tile.hfit(lft)
         })
         .collect::<Vec<_>>();
 
@@ -454,6 +353,7 @@ pub fn main() {
 
     let aligned = corners.into_iter()
         .map(|id| tiles.iter().find(|t| t.id == id).unwrap())
+        .flat_map(|tile| iterate(tile))
         .map(|tile| {
             let queue = tiles.iter()
                 .filter(|t| t.id != tile.id)
@@ -469,14 +369,14 @@ pub fn main() {
         .unwrap_or_default();
     assert_eq!(aligned.len(), tiles.len());
 
-    //let aligned = aligned.into_iter().map(crop).collect();
+    let aligned = aligned.into_iter().map(crop).collect();
     let joined = join(size, &aligned);
 
-    let txt = joined.tile.iter()
-        .map(|row| row.iter().collect::<String>())
-        .collect::<Vec<_>>()
-        .join("\n");
-    println!("{}", txt);
+    // let txt = joined.tile.iter()
+    //     .map(|row| row.iter().collect::<String>())
+    //     .collect::<Vec<_>>()
+    //     .join("\n");
+    // println!("{}", txt);
 
     let pattern = vec![
         "                  # ",
@@ -486,12 +386,14 @@ pub fn main() {
         .map(|row| row.chars().collect())
         .collect();
 
-    let n = iterate(&joined)
+    let monsters = iterate(&joined)
         .iter()
         .map(|tile| lookup(&tile.tile, &pattern))
         .max()
         .unwrap();
-    println!("n = {}", n);
+
+    let n = chars(&joined.tile, '#') - monsters * chars(&pattern, '#');
+    println!("{}", n);
 }
 
 #[cfg(test)]
@@ -668,40 +570,6 @@ mod tests {
     }
 
     #[test]
-    fn test_align() {
-        let tiles = part1();
-        let size = (tiles.len() as f64).sqrt().trunc() as usize;
-
-        let index = index(&tiles);
-        let count = count(&tiles);
-
-        let corners = corners(&index, &count);
-        let aligned = corners.into_iter()
-            .map(|id| tiles.iter().find(|t| t.id == id).unwrap())
-            .map(|tile| {
-                let queue = tiles.iter()
-                    .clone()
-                    .into_iter()
-                    .filter(|t| t.id != tile.id)
-                    .cloned()
-                    .collect();
-
-                let mut grid = Vec::with_capacity(size * size);
-                grid.push(tile.clone());
-
-                align(size, grid, queue, 1, &index, &count)
-            })
-            .find(|a| !a.is_empty())
-            .unwrap_or_default();
-
-        assert_eq!(aligned.into_iter().map(|t| t.id).collect::<Vec<_>>(), vec![
-            1171, 1489, 2971,
-            2473, 1427, 2729,
-            3079, 2311, 1951,
-        ]);
-    }
-
-    #[test]
     fn test_align2() {
         let tiles = part1();
         let size = (tiles.len() as f64).sqrt().trunc() as usize;
@@ -732,9 +600,9 @@ mod tests {
             .unwrap_or_default();
 
         assert_eq!(aligned.into_iter().map(|t| t.id).collect::<Vec<_>>(), vec![
-            1171, 1489, 2971,
-            2473, 1427, 2729,
-            3079, 2311, 1951,
+            1171, 2473, 3079,
+            1489, 1427, 2311,
+            2971, 2729, 1951,
         ]);
     }
 
