@@ -222,6 +222,7 @@ mod tests {
     }
 
     #[test]
+    #[ignore] // takes <2s in release, but too slow in debug
     fn test_10_m() {
         let cups = unfold(vec![3,8,9,1,2,5,4,6,7]);
 
