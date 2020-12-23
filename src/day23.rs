@@ -17,8 +17,8 @@ pub fn main() {
         step2(&mut list, &mut cup);
     }
 
-    let a = list[1].1;
-    let b = list[a].1;
+    let a = list[1];
+    let b = list[a];
     println!("{}", a * b);
 }
 
@@ -124,33 +124,31 @@ fn unfold(cups: Vec<usize>) -> Vec<usize> {
     result
 }
 
-// list[LABEL] = (prev LABEL, next LABEL)
-fn as_list(cups: &[usize]) -> Vec<(usize, usize)> {
-    let mut list = vec![(0, 0); cups.len() + 1];
-
-    cups.windows(3)
-        .for_each(|w| {
-            list[w[1]] = (w[0], w[2]);
-        });
-
+// list[label] = next label clockwise
+fn as_list(cups: &[usize]) -> Vec<usize> {
+    let mut list = vec![0; cups.len() + 1];
     let n = cups.len();
-    list[cups[0]] = (cups[n-1], cups[1]);
-    list[cups[n-1]] = (cups[n-2], cups[0]);
+
+    for i in 0..n-1 {
+        list[cups[i]] = cups[i+1];
+    }
+
+    list[cups[n-1]] = cups[0];
 
     list
 }
 
-fn step2(list: &mut Vec<(usize, usize)>, cup: &mut usize) {
-    let n = list.len();
+fn step2(next: &mut [usize], cup: &mut usize) {
+    let n = next.len();
     let mut dst = if *cup == 1 {
         n - 1
     } else {
         *cup - 1
     };
 
-    let cut1 = list[*cup].1;
-    let cut2 = list[cut1].1;
-    let cut3 = list[cut2].1;
+    let cut1 = next[*cup];
+    let cut2 = next[cut1];
+    let cut3 = next[cut2];
 
     let cut = vec![cut1, cut2, cut3];
     while cut.contains(&dst) {
@@ -161,17 +159,11 @@ fn step2(list: &mut Vec<(usize, usize)>, cup: &mut usize) {
         }
     }
 
-    list[*cup].1 = list[cut3].1;
+    next[*cup] = next[cut3];
+    next[cut3] = next[dst];
+    next[dst] = cut1;
 
-    let dst_next = list[dst].1;
-
-    list[dst].1 = cut1;
-    list[cut1] = (dst, cut2);
-    list[cut2] = (cut1, cut3);
-    list[cut3] = (cut2, dst_next);
-    list[dst_next].0 = cut3;
-
-    *cup = list[*cup].1;
+    *cup = next[*cup];
 }
 
 
@@ -223,7 +215,7 @@ mod tests {
 
     #[test]
     #[ignore] // takes <2s in release, but too slow in debug
-    fn test_10_m() {
+    fn test_part2() {
         let cups = unfold(vec![3,8,9,1,2,5,4,6,7]);
 
         let mut list = as_list(&cups);
@@ -233,8 +225,8 @@ mod tests {
             step2(&mut list, &mut cup);
         }
 
-        let a = list[1].1;
-        let b = list[a].1;
+        let a = list[1];
+        let b = list[a];
         assert_eq!(a, 934001);
         assert_eq!(b, 159792);
     }
