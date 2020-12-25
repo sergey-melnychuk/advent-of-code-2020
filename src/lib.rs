@@ -1,7 +1,6 @@
 #[macro_use] extern crate lazy_static;
 
 mod utils;
-mod day00;
 
 pub mod day01;
 pub mod day02;
